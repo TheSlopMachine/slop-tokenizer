@@ -1,9 +1,13 @@
 package tokenizer
 
-import "container/list"
+import (
+	"container/list"
+	"sync"
+)
 
 // lruCache implements a simple LRU cache for BPE merge results
 type lruCache struct {
+	mu       sync.RWMutex
 	capacity int
 	items    map[string]*list.Element
 	list     *list.List
@@ -26,6 +30,8 @@ func newLRUCache(capacity int) *lruCache {
 
 // get retrieves a value from the cache
 func (c *lruCache) get(key string) ([]int, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if elem, ok := c.items[key]; ok {
 		c.list.MoveToFront(elem)
 		return elem.Value.(*cacheEntry).tokens, true
@@ -35,6 +41,8 @@ func (c *lruCache) get(key string) ([]int, bool) {
 
 // put adds a value to the cache
 func (c *lruCache) put(key string, tokens []int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	// If key exists, update and move to front
 	if elem, ok := c.items[key]; ok {
 		c.list.MoveToFront(elem)
